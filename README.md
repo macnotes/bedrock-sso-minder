@@ -1,2 +1,5 @@
 # bedrock-sso-minder
-macOS to freshen AWS Bedrock Code Assist SSO login
+
+macOS menu bar app to freshen AWS Bedrock Code Assist SSO login
+
+I've been using Bedrock models in the Copilot extension for VS Code but my Bedrock SSO times out a lot. This will check status when my Mac wakes from sleep and updates the SSO. 
