@@ -1,3 +1,4 @@
+//
 //  AppDelegate.swift
 //  Bedrock SSO
 
@@ -175,7 +176,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 item.isEnabled = false
                 menu.addItem(item)
             }
-            let copyItem = NSMenuItem(title: "Copy Login Details", action: #selector(copyIdentityInfo), keyEquivalent: "")
+            let copyItem = NSMenuItem(title: "Copy Full Details", action: #selector(copyIdentityInfo), keyEquivalent: "")
             copyItem.target = self
             menu.addItem(copyItem)
             menu.addItem(.separator())
@@ -265,9 +266,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Expiry behavior
 
+    var hasCompletedInitialCheck = false
+
     func handleExpiryTransition() {
-        // Only fire these when we transition from authenticated -> expired
-        guard wasAuthenticated, !isAuthenticated else { return }
+        // Fire on auth -> expired transition, or on first check if already expired
+        let isNewExpiry = wasAuthenticated && !isAuthenticated
+        let isExpiredOnLaunch = !hasCompletedInitialCheck && !isAuthenticated
+        hasCompletedInitialCheck = true
+        guard isNewExpiry || isExpiredOnLaunch else { return }
 
         if isExpiryActionEnabled(.notification) {
             showNotification(
@@ -284,7 +290,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Stop any existing pulse
         pulseTimer?.invalidate()
         pulseTimer = nil
-        pulseVisible = true
+        if let button = statusItem.button {
+            button.animator().alphaValue = 1.0
+        }
 
         if isAuthenticated {
             updateIcon(state: .active)
@@ -298,12 +306,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func startPulsing() {
-        pulseVisible = true
         updateIcon(state: .inactive)
-        pulseTimer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: true) { _ in
+        guard let button = statusItem.button else { return }
+        button.alphaValue = 1.0
+        pulseTimer = Timer.scheduledTimer(withTimeInterval: 1.6, repeats: true) { _ in
             Task { @MainActor in
-                self.pulseVisible.toggle()
-                self.updateIcon(state: self.pulseVisible ? .inactive : .hidden)
+                NSAnimationContext.runAnimationGroup({ ctx in
+                    ctx.duration = 0.8
+                    ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                    button.animator().alphaValue = 0.15
+                }) {
+                    NSAnimationContext.runAnimationGroup { ctx in
+                        ctx.duration = 0.8
+                        ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                        button.animator().alphaValue = 1.0
+                    }
+                }
             }
         }
     }
